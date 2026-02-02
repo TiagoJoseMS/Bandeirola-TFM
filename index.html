@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora TFM - Padrão EB</title>
+    <style>
+        :root {
+            --verde: #2ecc71; --amarela: #f1c40f; --vermelha: #e74c3c; --preta: #1a1a1a;
+            --militar: #3a5311; --bg: #d6dce2;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg);
+            margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center;
+            transition: background 0.6s ease;
+        }
+        .header { text-align: center; margin-bottom: 20px; width: 100%; max-width: 450px; color: #1a2a1a; }
+        .card {
+            background: white; padding: 22px; border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 100%; max-width: 450px; box-sizing: border-box;
+        }
+        .search-group { position: relative; margin-bottom: 20px; }
+        .search-group input {
+            width: 100%; padding: 14px 45px 14px 14px; border: 2px solid #ddd;
+            border-radius: 12px; box-sizing: border-box; font-size: 1rem;
+        }
+        .gps-icon {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; cursor: pointer; font-size: 1.3rem; color: var(--militar);
+        }
+        .coords-label { font-size: 0.7rem; color: #888; margin-top: 4px; text-align: right; display: block; }
+        .input-row { display: flex; gap: 12px; margin-bottom: 5px; }
+        .input-group { flex: 1; }
+        label { display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 6px; color: #444; }
+        input[type="number"] {
+            width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px;
+            font-size: 1.1rem; box-sizing: border-box; text-align: center;
+        }
+        .info-container { width: 100%; display: flex; justify-content: flex-end; margin-top: 8px; }
+        .info-btn {
+            background: #7f8c8d; color: white; border: none; border-radius: 50%; 
+            width: 28px; height: 28px; cursor: pointer; font-weight: bold; font-family: serif;
+        }
+        #result-display { margin-top: 15px; border-radius: 15px; padding: 20px; display: none; animation: slideIn 0.4s ease; }
+        .bandeira-titulo { font-size: 1.5rem; font-weight: 900; text-align: center; margin-bottom: 12px; }
+        .secao-msg { margin-top: 10px; font-size: 0.9rem; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 10px; line-height: 1.4; }
+        
+        .historico-section { margin-top: 20px; width: 100%; max-width: 450px; background: white; border-radius: 15px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); box-sizing: border-box; }
+        .hist-item { font-size: 0.8rem; padding: 8px 0; border-bottom: 1px solid #eee; }
+
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+        .modal-content { background: white; margin: 5% auto; padding: 25px; border-radius: 15px; width: 85%; max-width: 450px; font-size: 0.88rem; max-height: 80vh; overflow-y: auto; text-align: justify; }
+        .modal-close { background: var(--militar); color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; margin-top: 15px; cursor: pointer; font-weight: bold; }
+
+        .creditos { text-align: center; margin: 25px 0; font-size: 0.75rem; color: #555; font-weight: bold; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
+        .status-verde { background-color: var(--verde); color: white; }
+        .status-amarela { background-color: var(--amarela); color: #222; }
+        .status-vermelha { background-color: var(--vermelha); color: white; }
+        .status-preta { background-color: var(--preta); color: white; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2 style="margin:0">BANDEIRA TFM - EB</h2>
+    <small>Diretrizes EB70-MC-10.375</small>
+</div>
+
+<div class="card">
+    <label>Localização (Cidade ou 🎯 GPS):</label>
+    <div class="search-group">
+        <input type="text" id="cidadeInput" placeholder="Ex: Rio de Janeiro, RJ" onkeypress="if(event.key==='Enter') buscarPorCidade()">
+        <button class="gps-icon" onclick="usarGPS()">🎯</button>
+        <span class="coords-label" id="coordsDisplay">Coordenadas: --, --</span>
+    </div>
+    
+    <div class="input-row">
+        <div class="input-group"><label>Temp. Ar (°C)</label><input type="number" id="temp" step="0.1" oninput="calcularBandeira()"></div>
+        <div class="input-group"><label>URA (%)</label><input type="number" id="ura" oninput="calcularBandeira()"></div>
+    </div>
+
+    <div class="info-container">
+        <button class="info-btn" onclick="toggleModal(true)">i</button>
+    </div>
+
+    <div id="result-display">
+        <div class="bandeira-titulo" id="cor-nome"></div>
+        <div class="secao-msg"><b>MAR (Alto Risco):</b> <br><span id="msg-alto"></span></div>
+        <div class="secao-msg"><b>MBR (Baixo Risco):</b> <br><span id="msg-baixo"></span></div>
+    </div>
+</div>
+
+<div class="historico-section" id="histSection" style="display:none;">
+    <div style="font-weight:bold; font-size:0.9rem; margin-bottom:10px; color: var(--militar); border-bottom: 2px solid #eee;">Histórico Detalhado</div>
+    <div id="histLista"></div>
+</div>
+
+<div class="creditos">Créditos: 1º Sgt TOPO Moraes Silva</div>
+
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0; color:var(--militar); border-bottom: 1px solid #eee; padding-bottom: 10px; text-align: center;">Nota Técnica EB70-MC-10.375</h3>
+        
+        <p><b>1. Instruções de Operação:</b><br>
+        • <b>Coleta de Dados:</b> Utilize o ícone 🎯 para capturar a posição via GPS ou busque por cidade. Os dados de temperatura e URA são carregados via satélite.<br>
+        • <b>Aferição Local:</b> Para maior precisão em campo, insira manualmente os valores obtidos por termo-higrômetro local.</p>
+
+        <p><b>2. Definições de Risco (Quadro 2-3):</b><br>
+        • <b>MAR (Alto Risco):</b> Militares com baixo condicionamento físico (TAF igual ou inferior a REGULAR) e militares não aclimatados (menos de 4 semanas na guarnição).<br>
+        • <b>MBR (Baixo Risco):</b> Militares com bom condicionamento físico e aclimatados.</p>
+
+        <p><b>3. Metodologia:</b><br>
+        Lógica baseada no Quadro 2-2 para cruzamento de Temperatura/Umidade e Quadro 2-3 para restrições de atividade.</p>
+
+        <p><b>4. Fonte e API:</b><br>
+        Processamento via <b>Open-Meteo</b>. Documentação: <a href="https://open-meteo.com/en/docs" target="_blank" style="color:#2980b9">open-meteo.com</a>.</p>
+
+        <button class="modal-close" onclick="toggleModal(false)">Fechar</button>
+    </div>
+</div>
+
+<script>
+    let historico = [];
+
+    function toggleModal(show) { document.getElementById('infoModal').style.display = show ? 'block' : 'none'; }
+
+    function usarGPS() {
+        if (!navigator.geolocation) return alert("GPS não suportado.");
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const { latitude, longitude } = pos.coords;
+            document.getElementById('coordsDisplay').innerText = `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`;
+            buscarClima(latitude, longitude, "Localização GPS");
+        }, () => alert("Erro ao capturar GPS. Verifique as permissões."));
+    }
+
+    async function buscarPorCidade() {
+        const cidade = document.getElementById('cidadeInput').value;
+        if (!cidade) return;
+        try {
+            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cidade)}&count=1&language=pt`);
+            const data = await res.json();
+            if (data.results) {
+                const { latitude, longitude, name, admin1 } = data.results[0];
+                document.getElementById('coordsDisplay').innerText = `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`;
+                buscarClima(latitude, longitude, `${name}, ${admin1 || ''}`);
+            }
+        } catch (e) { alert("Erro ao localizar cidade."); }
+    }
+
+    async function buscarClima(lat, lon, localNome) {
+        try {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`);
+            const data = await res.json();
+            document.getElementById('temp').value = data.current.temperature_2m;
+            document.getElementById('ura').value = data.current.relative_humidity_2m;
+            document.getElementById('cidadeInput').value = localNome;
+            calcularBandeira();
+        } catch (e) { alert("Erro ao carregar dados."); }
+    }
+
+    function calcularBandeira() {
+        const tVal = parseFloat(document.getElementById('temp').value);
+        const t = Math.round(tVal);
+        const u = parseFloat(document.getElementById('ura').value);
+        const local = document.getElementById('cidadeInput').value || "Manual";
+        
+        if (isNaN(t) || isNaN(u)) return;
+
+        let cor = "";
+        // Quadro 2-2
+        if (t <= 22) cor = "verde";
+        else if (t === 23) cor = u <= 84 ? "verde" : "amarela";
+        else if (t === 24) cor = u <= 77 ? "verde" : "amarela";
+        else if (t === 25) cor = u <= 70 ? "verde" : "amarela";
+        else if (t === 26) cor = u <= 64 ? "verde" : "amarela";
+        else if (t === 27) cor = u <= 58 ? "verde" : (u <= 85 ? "amarela" : "vermelha");
+        else if (t === 28) cor = u <= 53 ? "verde" : (u <= 80 ? "amarela" : "vermelha");
+        else if (t === 29) cor = u <= 49 ? "verde" : (u <= 72 ? "amarela" : (u <= 86 ? "vermelha" : "preta"));
+        else if (t === 30) cor = u <= 44 ? "verde" : (u <= 67 ? "amarela" : (u <= 79 ? "vermelha" : "preta"));
+        else if (t === 31) cor = u <= 40 ? "verde" : (u <= 61 ? "amarela" : (u <= 73 ? "vermelha" : "preta"));
+        else if (t === 32) cor = u <= 37 ? "verde" : (u <= 57 ? "amarela" : (u <= 68 ? "vermelha" : "preta"));
+        else if (t === 33) cor = u <= 33 ? "verde" : (u <= 52 ? "amarela" : (u <= 63 ? "vermelha" : "preta"));
+        else if (t === 34) cor = u <= 30 ? "verde" : (u <= 48 ? "amarela" : (u <= 58 ? "vermelha" : "preta"));
+        else if (t === 35) cor = u <= 28 ? "verde" : (u <= 44 ? "amarela" : (u <= 54 ? "vermelha" : "preta"));
+        else if (t === 36) cor = u <= 25 ? "verde" : (u <= 41 ? "amarela" : (u <= 50 ? "vermelha" : "preta"));
+        else if (t === 37) cor = u <= 38 ? "amarela" : (u <= 46 ? "vermelha" : "preta");
+        else if (t === 38) cor = u <= 35 ? "amarela" : (u <= 43 ? "vermelha" : "preta");
+        else if (t === 39) cor = u <= 32 ? "amarela" : (u <= 39 ? "vermelha" : "preta");
+        else cor = "preta";
+
+        // Recomendações Quadro 2-3
+        const recs = {
+            verde: { a: "• Atividade normal. \n• Monitorar a ingestão de líquidos.", b: "• Atividade normal." },
+            amarela: { a: "• Observar os militares cuidadosamente. \n• Monitorar a ingestão de líquidos.", b: "• Atividade normal. \n• Monitorar a ingestão de líquidos." },
+            vermelha: { a: "• Controlar rigidamente a intensidade e duração da atividade. \n• Aumentar a relação repouso/atividade. \n• Observar os militares cuidadosamente.", b: "• Limitar a realização de atividades intensas e prolongadas. \n• Observar os militares cuidadosamente. \n• Monitorar a ingestão de líquidos." },
+            preta: { a: "• CANCELAR a prática de exercícios físicos.", b: "• Controlar rigidamente a intensidade e duração da atividade. \n• Aumentar a relação repouso/atividade. \n• Observar os militares cuidadosamente. \n• Monitorar rigidamente a ingestão de líquidos." }
+        };
+
+        const display = document.getElementById('result-display');
+        display.style.display = 'block';
+        display.className = 'status-' + cor;
+        document.getElementById('cor-nome').innerText = "BANDEIRA " + cor.toUpperCase();
+        document.getElementById('msg-alto').innerText = recs[cor].a;
+        document.getElementById('msg-baixo').innerText = recs[cor].b;
+        document.body.style.backgroundColor = `var(--${cor})`;
+        
+        adicionarHistorico(local, tVal, u, cor);
+    }
+
+    function adicionarHistorico(local, temp, ura, cor) {
+        const agora = new Date();
+        const dataH = agora.toLocaleDateString('pt-BR') + " " + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+        const hexCores = { verde: '#2ecc71', amarela: '#f39c12', vermelha: '#e74c3c', preta: '#1a1a1a' };
+        
+        historico.unshift({ data: dataH, local, t: temp, u: ura, corText: cor.toUpperCase(), corHex: hexCores[cor] });
+        if(historico.length > 5) historico.pop();
+
+        document.getElementById('histSection').style.display = 'block';
+        document.getElementById('histLista').innerHTML = historico.map(i => `
+            <div class="hist-item">
+                <b>${i.data}</b> | ${i.local}<br>
+                ${i.t}°C / ${i.u}% | <span style="color: ${i.corHex}; font-weight: 900;">BANDEIRA ${i.corText}</span>
+            </div>
+        `).join('');
+    }
+</script>
+</body>
+</html>
