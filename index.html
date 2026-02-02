@@ -101,36 +101,38 @@
 <div id="infoModal" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0; color:var(--militar); border-bottom: 1px solid #eee; padding-bottom: 10px; text-align: center;">Nota Técnica EB70-MC-10.375</h3>
-        
         <p><b>1. Instruções de Operação:</b><br>
-        • <b>Coleta de Dados:</b> Utilize o ícone 🎯 para capturar a posição via GPS ou busque por cidade. Os dados de temperatura e URA são carregados via satélite.<br>
-        • <b>Aferição Local:</b> Para maior precisão em campo, insira manualmente os valores obtidos por termo-higrômetro local.</p>
-
+        • <b>Coleta de Dados:</b> Utilize o GPS (🎯) ou busque por cidade para carregar dados de satélite. <br>
+        • <b>Aferição Local:</b> Sempre que possível, utilize os dados de um termo-higrômetro local inserindo os valores manualmente.</p>
         <p><b>2. Definições de Risco (Quadro 2-3):</b><br>
-        • <b>MAR (Alto Risco):</b> Militares com baixo condicionamento físico (TAF igual ou inferior a REGULAR) e militares não aclimatados (menos de 4 semanas na guarnição).<br>
-        • <b>MBR (Baixo Risco):</b> Militares com bom condicionamento físico e aclimatados.</p>
-
-        <p><b>3. Metodologia:</b><br>
-        Lógica baseada no Quadro 2-2 para cruzamento de Temperatura/Umidade e Quadro 2-3 para restrições de atividade.</p>
-
-        <p><b>4. Fonte e API:</b><br>
-        Processamento via <b>Open-Meteo</b>. Documentação: <a href="https://open-meteo.com/en/docs" target="_blank" style="color:#2980b9">open-meteo.com</a>.</p>
-
+        • <b>MAR (Alto Risco):</b> Militares com baixo condicionamento (TAF ≤ REGULAR) e militares não aclimatados (< 4 semanas na guarnição).<br>
+        • <b>MBR (Baixo Risco):</b> Militares condicionados e aclimatados.</p>
         <button class="modal-close" onclick="toggleModal(false)">Fechar</button>
     </div>
 </div>
 
 <script>
     let historico = [];
-
     function toggleModal(show) { document.getElementById('infoModal').style.display = show ? 'block' : 'none'; }
 
-    function usarGPS() {
+    async function usarGPS() {
         if (!navigator.geolocation) return alert("GPS não suportado.");
-        navigator.geolocation.getCurrentPosition((pos) => {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
             const { latitude, longitude } = pos.coords;
             document.getElementById('coordsDisplay').innerText = `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`;
-            buscarClima(latitude, longitude, "Localização GPS");
+            
+            // BUSCA O NOME DA CIDADE PELA COORDENADA (Geocoding Reversa)
+            try {
+                const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+                const geoData = await geoRes.json();
+                const cidade = geoData.address.city || geoData.address.town || geoData.address.village || "Local Desconhecido";
+                const uf = geoData.address.state_code || geoData.address.state || "";
+                const localFormatado = `${cidade}${uf ? ', ' + uf : ''}`;
+                
+                buscarClima(latitude, longitude, localFormatado);
+            } catch (e) {
+                buscarClima(latitude, longitude, "Localização GPS");
+            }
         }, () => alert("Erro ao capturar GPS. Verifique as permissões."));
     }
 
@@ -164,11 +166,9 @@
         const t = Math.round(tVal);
         const u = parseFloat(document.getElementById('ura').value);
         const local = document.getElementById('cidadeInput').value || "Manual";
-        
         if (isNaN(t) || isNaN(u)) return;
 
         let cor = "";
-        // Quadro 2-2
         if (t <= 22) cor = "verde";
         else if (t === 23) cor = u <= 84 ? "verde" : "amarela";
         else if (t === 24) cor = u <= 77 ? "verde" : "amarela";
@@ -189,7 +189,6 @@
         else if (t === 39) cor = u <= 32 ? "amarela" : (u <= 39 ? "vermelha" : "preta");
         else cor = "preta";
 
-        // Recomendações Quadro 2-3
         const recs = {
             verde: { a: "• Atividade normal. \n• Monitorar a ingestão de líquidos.", b: "• Atividade normal." },
             amarela: { a: "• Observar os militares cuidadosamente. \n• Monitorar a ingestão de líquidos.", b: "• Atividade normal. \n• Monitorar a ingestão de líquidos." },
@@ -204,23 +203,19 @@
         document.getElementById('msg-alto').innerText = recs[cor].a;
         document.getElementById('msg-baixo').innerText = recs[cor].b;
         document.body.style.backgroundColor = `var(--${cor})`;
-        
         adicionarHistorico(local, tVal, u, cor);
     }
 
     function adicionarHistorico(local, temp, ura, cor) {
         const agora = new Date();
         const dataH = agora.toLocaleDateString('pt-BR') + " " + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-        const hexCores = { verde: '#2ecc71', amarela: '#f39c12', vermelha: '#e74c3c', preta: '#1a1a1a' };
-        
-        historico.unshift({ data: dataH, local, t: temp, u: ura, corText: cor.toUpperCase(), corHex: hexCores[cor] });
+        historico.unshift({ data: dataH, local, t: temp, u: ura, corText: cor.toUpperCase() });
         if(historico.length > 5) historico.pop();
-
         document.getElementById('histSection').style.display = 'block';
         document.getElementById('histLista').innerHTML = historico.map(i => `
             <div class="hist-item">
                 <b>${i.data}</b> | ${i.local}<br>
-                ${i.t}°C / ${i.u}% | <span style="color: ${i.corHex}; font-weight: 900;">BANDEIRA ${i.corText}</span>
+                ${i.t}°C / ${i.u}% | <b>BANDEIRA ${i.corText}</b>
             </div>
         `).join('');
     }
