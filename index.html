@@ -43,7 +43,7 @@
         }
         #result-display { margin-top: 15px; border-radius: 15px; padding: 20px; display: none; animation: slideIn 0.4s ease; }
         .bandeira-titulo { font-size: 1.5rem; font-weight: 900; text-align: center; margin-bottom: 12px; }
-        .secao-msg { margin-top: 10px; font-size: 0.9rem; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 10px; line-height: 1.4; }
+        .secao-msg { margin-top: 10px; font-size: 0.9rem; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 10px; line-height: 1.4; text-align: justify; }
         
         .historico-section { margin-top: 20px; width: 100%; max-width: 450px; background: white; border-radius: 15px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); box-sizing: border-box; }
         .hist-item { font-size: 0.8rem; padding: 8px 0; border-bottom: 1px solid #eee; }
@@ -101,12 +101,21 @@
 <div id="infoModal" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0; color:var(--militar); border-bottom: 1px solid #eee; padding-bottom: 10px; text-align: center;">Nota Técnica EB70-MC-10.375</h3>
+        
         <p><b>1. Instruções de Operação:</b><br>
-        • <b>Coleta de Dados:</b> Utilize o GPS (🎯) ou busque por cidade para carregar dados de satélite. <br>
-        • <b>Aferição Local:</b> Sempre que possível, utilize os dados de um termo-higrômetro local inserindo os valores manualmente.</p>
+        • <b>Coleta de Dados:</b> Utilize o ícone 🎯 para GPS ou busque por cidade. Os dados de temperatura ambiente e URA (Umidade Relativa do Ar) serão preenchidos automaticamente conforme monitoramento remoto.<br><br>
+        • <b>Aferição Local:</b> Em caso de divergência ou uso de termo-higrômetro digital local, insira os dados manualmente nos campos correspondentes.</p>
+
         <p><b>2. Definições de Risco (Quadro 2-3):</b><br>
-        • <b>MAR (Alto Risco):</b> Militares com baixo condicionamento (TAF ≤ REGULAR) e militares não aclimatados (< 4 semanas na guarnição).<br>
-        • <b>MBR (Baixo Risco):</b> Militares condicionados e aclimatados.</p>
+        • <b>MAR (Alto Risco):</b> Militares com baixo condicionamento físico (resultados do TAF igual ou inferior ao conceito REGULAR) e militares não aclimatados (menos de 4 semanas de guarnição com diferença climática significativa).<br><br>
+        • <b>MBR (Baixo Risco):</b> Militares com bom condicionamento físico e já aclimatados às condições da guarnição.</p>
+
+        <p><b>3. Metodologia:</b><br>
+        O sistema processa a temperatura e a umidade conforme o <b>Quadro 2-2</b> para determinar a cor da bandeira. As recomendações de atividade seguem o <b>Quadro 2-3</b>, baseadas no nível de estresse térmico identificado.</p>
+
+        <p><b>4. Fonte de Dados e Projeto:</b><br>
+        Meteorologia via <b>Open-Meteo</b> (Modelos GFS/INMET). Documentação da API: <a href="https://open-meteo.com/en/docs" target="_blank" style="color:#2980b9">open-meteo.com</a>.</p>
+
         <button class="modal-close" onclick="toggleModal(false)">Fechar</button>
     </div>
 </div>
@@ -121,14 +130,12 @@
             const { latitude, longitude } = pos.coords;
             document.getElementById('coordsDisplay').innerText = `Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`;
             
-            // BUSCA O NOME DA CIDADE PELA COORDENADA (Geocoding Reversa)
             try {
                 const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
                 const geoData = await geoRes.json();
                 const cidade = geoData.address.city || geoData.address.town || geoData.address.village || "Local Desconhecido";
                 const uf = geoData.address.state_code || geoData.address.state || "";
                 const localFormatado = `${cidade}${uf ? ', ' + uf : ''}`;
-                
                 buscarClima(latitude, longitude, localFormatado);
             } catch (e) {
                 buscarClima(latitude, longitude, "Localização GPS");
@@ -193,7 +200,7 @@
             verde: { a: "• Atividade normal. \n• Monitorar a ingestão de líquidos.", b: "• Atividade normal." },
             amarela: { a: "• Observar os militares cuidadosamente. \n• Monitorar a ingestão de líquidos.", b: "• Atividade normal. \n• Monitorar a ingestão de líquidos." },
             vermelha: { a: "• Controlar rigidamente a intensidade e duração da atividade. \n• Aumentar a relação repouso/atividade. \n• Observar os militares cuidadosamente.", b: "• Limitar a realização de atividades intensas e prolongadas. \n• Observar os militares cuidadosamente. \n• Monitorar a ingestão de líquidos." },
-            preta: { a: "• CANCELAR a prática de exercícios físicos.", b: "• Controlar rigidamente a intensidade e duração da atividade. \n• Aumentar a relação repouso/atividade. \n• Observar os militares cuidadosamente. \n• Monitorar rigidamente a ingestão de líquidos." }
+            preta: { a: "• Cancelar a prática de exercícios físicos.", b: "• Controlar rigidamente a intensidade e duração da atividade. \n• Aumentar a relação repouso/atividade. \n• Observar os militares cuidadosamente. \n• Monitorar rigidamente a ingestão de líquidos." }
         };
 
         const display = document.getElementById('result-display');
